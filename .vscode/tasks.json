@@ -1,0 +1,21 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "dev",
+			"path": "frontend/app-react",
+			"problemMatcher": [],
+			"label": "npm: dev - frontend/app-react",
+			"detail": "vite"
+		},
+		{
+			"type": "npm",
+			"script": "dev",
+			"path": "backend",
+			"problemMatcher": [],
+			"label": "npm: dev - backend",
+			"detail": "nodemon index.js"
+		}
+	]
+}

@@ -2,8 +2,9 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-// Importar rutas
+// Importar rutas de los modulos
 const inventarioRoutes = require('./routes/inventarioRoutes');
+const sucursalesRoutes = require('./routes/sucursalesRoutes');
 
 const app = express();
 
@@ -22,8 +23,9 @@ app.get('/api/status', (req, res) => {
     res.json({ message: 'API de Farmacias funcionando correctamente' });
 });
 
-// Registrar módulos (aquí iremos agregando los futuros como Auditoría)
+// Registrar módulos
 app.use('/api/inventario', inventarioRoutes);
+app.use('/api/sucursales', sucursalesRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

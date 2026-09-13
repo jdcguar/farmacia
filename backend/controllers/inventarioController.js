@@ -6,9 +6,11 @@ const obtenerInventario = async (req, res) => {
     let connection;
     try {
         connection = await db.getConnection();
-
         const result = await connection.execute(
-            `SELECT ID, NOMBRE, STOCK, SUCURSAL FROM INVENTARIO_MEDICAMENTOS WHERE ESTADO = 1`,
+            `SELECT I.ID, I.NOMBRE, I.STOCK, I.SUCURSAL_ID, S.NOMBRE AS SUCURSAL_NOMBRE 
+             FROM INVENTARIO_MEDICAMENTOS I
+             JOIN SUCURSALES S ON I.SUCURSAL_ID = S.ID
+             WHERE I.ESTADO = 1`,
             [],
             { outFormat: oracledb.OUT_FORMAT_OBJECT }
         );
@@ -25,24 +27,36 @@ const obtenerInventario = async (req, res) => {
 
 // crear (POST)
 const crearMedicamento = async (req, res) => {
-    const { nombre, stock, sucursal } = req.body;
-    let connection;
-    try {
-        connection = await db.getConnection();
-        await connection.execute(
-            `INSERT INTO INVENTARIO_MEDICAMENTOS (NOMBRE, STOCK, SUCURSAL) VALUES (:1, :2, :3)`,
-            [nombre, stock, sucursal],
-            { autoCommit: true }
-        );
-        res.status(201).json({ message: 'Medicamento guardado exitosamente' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Error al guardar en la base de datos' });
-    } finally {
-        if (connection) {
-            try { await connection.close(); } catch (err) { console.error(err); }
-        }
+  const { nombre, stock, sucursal_id } = req.body;
+
+  if (!nombre || nombre.trim() === "")
+    return res.status(400).json({ error: "El nombre no puede estar vacío." });
+  if (stock === undefined || stock < 0 || !Number.isInteger(Number(stock)))
+    return res.status(400).json({ error: "El stock debe ser un número entero y no negativo." });
+  if (!sucursal_id || isNaN(sucursal_id))
+    return res
+      .status(400)
+      .json({ error: "Debe seleccionar una sucursal válida." });
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+    await connection.execute(
+      `INSERT INTO INVENTARIO_MEDICAMENTOS (NOMBRE, STOCK, SUCURSAL_ID) VALUES (:1, :2, :3)`,
+      [nombre, stock, sucursal_id],
+      { autoCommit: true },
+    );
+    res.status(201).json({ message: "Medicamento guardado" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al guardar en BD" });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {}
     }
+  }
 };
 
 // DELETE
@@ -78,46 +92,41 @@ const eliminarMedicamento = async (req, res) => {
 
 //  actualizar (PUT)
 const actualizarMedicamento = async (req, res) => {
-    const { id } = req.params;
-    const { nombre, stock, sucursal } = req.body;
+  const { id } = req.params;
+  const { nombre, stock, sucursal_id } = req.body;
 
-    // Validación de entrada
-    if (!nombre || nombre.trim() === '') {
-        return res.status(400).json({ error: 'El nombre no puede estar vacío.' });
-    }
-    if (stock === undefined || stock < 0 || !Number.isInteger(Number(stock))) {
-        return res.status(400).json({ error: 'El stock debe ser un número entero y no negativo.' });
-    }
-    if (!['Central', 'Norte', 'Sur'].includes(sucursal)) {
-        return res.status(400).json({ error: 'La sucursal seleccionada no es válida.' });
-    }
+  if (!nombre || nombre.trim() === "")
+    return res.status(400).json({ error: "El nombre no puede estar vacío." });
+  if (stock === undefined || stock < 0 || !Number.isInteger(Number(stock)))
+    return res.status(400).json({ error: "Stock inválido." });
+  if (!sucursal_id || isNaN(sucursal_id))
+    return res
+      .status(400)
+      .json({ error: "Debe seleccionar una sucursal válida." });
 
-    let connection;
-    try {
-        connection = await db.getConnection();
-        
-        // UPDATE sin revivir registros eliminados lógicamente (ESTADO = 1)
-        const result = await connection.execute(
-            `UPDATE INVENTARIO_MEDICAMENTOS 
-             SET NOMBRE = :1, STOCK = :2, SUCURSAL = :3 
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const result = await connection.execute(
+      `UPDATE INVENTARIO_MEDICAMENTOS 
+             SET NOMBRE = :1, STOCK = :2, SUCURSAL_ID = :3 
              WHERE ID = :4 AND ESTADO = 1`,
-            [nombre, stock, sucursal, id],
-            { autoCommit: true }
-        );
-
-        if (result.rowsAffected === 0) {
-            return res.status(404).json({ message: 'Medicamento no encontrado o inactivo' });
-        }
-
-        res.json({ message: 'Registro actualizado con estándares de seguridad' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Error interno del servidor' });
-    } finally {
-        if (connection) {
-            try { await connection.close(); } catch (err) { console.error(err); }
-        }
+      [nombre, stock, sucursal_id, id],
+      { autoCommit: true },
+    );
+    if (result.rowsAffected === 0)
+      return res.status(404).json({ message: "Medicamento no encontrado" });
+    res.json({ message: "Actualizado correctamente" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al actualizar en BD" });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {}
     }
+  }
 };
 
 module.exports = {
